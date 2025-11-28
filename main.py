@@ -2,6 +2,7 @@ import io
 import os
 import traceback
 from typing import List, Optional, Tuple
+from fastapi.middleware.cors import CORSMiddleware
 
 from dotenv import load_dotenv
 load_dotenv()  
@@ -69,6 +70,15 @@ class LLMPageResult(BaseModel):
 # FastAPI app & global Gemini client
 
 app = FastAPI(title="HackRx Bill Extraction API (Gemini)")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Adjust this to your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # 🔹 Read API key from environment and create global client
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
