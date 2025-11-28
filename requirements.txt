@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+httpx
+pydantic
+pillow
+pytesseract
+pdf2image
+google-genai
+python-dotenv
