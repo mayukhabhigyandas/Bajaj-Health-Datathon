@@ -124,6 +124,8 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 Create a .env file in the same folder as main.py:
 ```bash 
 GEMINI_API_KEY=your_gemini_api_key_here
+POPPLER_PATH=path to poppler 
+TESSERACT_CMD=path to tesseract.exe
 ```
 
 ## Testing the API
