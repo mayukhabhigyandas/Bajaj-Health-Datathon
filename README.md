@@ -95,7 +95,7 @@ git clone https://github.com/mayukhabhigyandas/Bajaj-Health-Datathon.git
 cd Bajaj-Health-Datathon
 ```
 
-### 1️⃣ Create & activate a Virtual Environment
+### 2. Create & activate a Virtual Environment
 
 ```bash
 # Create venv
@@ -108,19 +108,19 @@ venv\Scripts\activate
 # macOS/Linux:
 source venv/bin/activate
 ```
-### 2. Install Dependencies
+### 3. Install Dependencies
 ```bash 
 pip install -r requirements.txt
 
 sudo apt install -y tesseract-ocr poppler-utils(For Windows download the .exe and add to local path)
 ```
 
-### 3. Run the Application
+### 4. Run the Application
 ```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 4. Configure .env (do not commit the API KEY)
+### 5. Configure .env (do not commit the API KEY)
 Create a .env file in the same folder as main.py:
 ```bash 
 GEMINI_API_KEY=your_gemini_api_key_here

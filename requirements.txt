@@ -7,3 +7,8 @@ pytesseract
 pdf2image
 google-genai
 python-dotenv
+python-multipart
+google-generativeai
+opencv-python 
+numpy
+
