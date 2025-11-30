@@ -22,7 +22,7 @@ from pdf2image import convert_from_bytes
 
 from google import genai
 from google.genai import types as genai_types
-from google.genai import errors as genai_errors 
+from google.genai import errors as genai_errors
 
 
 POPPLER_PATH = os.getenv("POPPLER_PATH")
@@ -46,7 +46,7 @@ pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
 class BillItem(BaseModel):
     item_name: str
     item_amount: float
-    item_rate: float
+    item_rate: float = 0.0
     item_quantity: float
 
 
@@ -73,7 +73,7 @@ class ExtractResponse(BaseModel):
     data: Optional[DataPayload]
 
 
-# Internal schema for LLM structured output 
+# Internal schema for LLM structured output
 class LLMPageResult(BaseModel):
     page_no: str
     page_type: str
@@ -126,7 +126,7 @@ def bytes_to_images(file_bytes: bytes) -> List[Image.Image]:
     if is_pdf(file_bytes):
         images = convert_from_bytes(
             file_bytes,
-            dpi=220,               
+            dpi=220,
             poppler_path=POPPLER_PATH,
         )
         return images
@@ -137,7 +137,6 @@ def bytes_to_images(file_bytes: bytes) -> List[Image.Image]:
         return [img]
 
 
-
 def run_ocr(page_image: Image.Image) -> str:
     """
     Run OCR on a page image and return extracted text.
@@ -146,6 +145,31 @@ def run_ocr(page_image: Image.Image) -> str:
     custom_config = r"--oem 3 --psm 6 -l eng"
     text = pytesseract.image_to_string(page_image, config=custom_config)
     return text
+
+
+def has_rate_column(ocr_text: str) -> bool:
+    """
+    Detect if the page has a Rate/Price column at all.
+    If this returns False, we will force all item_rate = 0 for that page.
+    """
+    text_upper = ocr_text.upper()
+
+    # Common header keywords that indicate a rate/price column exists
+    keywords = [
+        " RATE ",       # surrounded by spaces
+        "\nRATE ",      # start of line-like
+        " RATE\n",
+        "\nRATE\n",
+        " RATE/UNIT",
+        " UNIT RATE",
+        " UNIT PRICE",
+        " PRICE ",
+        "\nPRICE ",
+        " MRP ",
+        "\nMRP ",
+    ]
+
+    return any(kw in text_upper for kw in keywords)
 
 
 def build_llm_prompts(page_no: int, ocr_text: str) -> Tuple[str, str]:
@@ -168,7 +192,7 @@ Given OCR text for ONE page:
    - If page has only totals and no items, bill_items = [].
 3. For each line item return:
    - item_name: exactly as in bill.
-   - item_rate: numeric.
+   - item_rate: numeric. If the rate is NOT explicitly present in the OCR text for that line item, set item_rate = 0.
    - item_quantity: numeric.
    - item_amount: numeric, net amount after discounts.
 
@@ -253,18 +277,23 @@ def extract_page_with_gemini(
     return page_items, token_usage
 
 
-
 async def process_page(idx: int, img: Image.Image) -> Tuple[PageItems, TokenUsage]:
     """
     Process a single page:
     - OCR in a threadpool
     - Gemini call in a threadpool
+    - If the OCR text does NOT contain a Rate/Price column, force all item_rate = 0.
     """
     # OCR (CPU-bound) → offload to thread
     ocr_text = await run_in_threadpool(run_ocr, img)
 
     # Gemini call → offload to thread (blocking I/O / CPU on SDK)
     page_items, usage = await run_in_threadpool(extract_page_with_gemini, idx, ocr_text)
+
+    # ---- NEW LOGIC: If the bill/page has NO rate column, set all item_rate = 0 ----
+    if not has_rate_column(ocr_text):
+        for it in page_items.bill_items:
+            it.item_rate = 0.0
 
     return page_items, usage
 
@@ -456,7 +485,6 @@ async def extract_bill_data(request: Request) -> ExtractResponse:
         )
 
 
-
 @app.on_event("shutdown")
 async def shutdown_event():
     try:
@@ -471,9 +499,6 @@ async def shutdown_event():
         pass
 
 
-
 @app.get("/")
 async def root():
     return {"status": "ok", "message": "HackRx Bill Extraction API (Gemini) running"}
-
-
